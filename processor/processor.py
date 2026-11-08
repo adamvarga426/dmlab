@@ -17,14 +17,11 @@ def background_processor():
         try:
             # Kivesszük az adatot a Redis üzenetsorból
             item = r.blpop('all_data_queue', timeout=5)
-            # print(f"type:{type(item)} -- {item}")
             if item:
                 _init_mysql()
                 raw_data = json.loads(item[1])
-                # print("raw_data:", raw_data)
                 with app.app_context():
                     for date_id, w_data in raw_data.items():
-                        # print(f"bck proc {date_id}: {w_data}")
                         new_entry = DataModel(
                             date_id=date_id,
                             water_level=w_data.get('water_level'),

@@ -10,23 +10,11 @@ import datetime
 import io
 import pandas as pd
 
-from pprint import pprint
 
 redis_host = os.getenv('REDIS_HOST', 'redis_broker')
 r = redis.Redis(host=redis_host, port=6379, decode_responses=True)
 
-
-def fetch_data():
-    # Példa külső API hívásra vagy adatgyűjtésre
-    # response = requests.get("https://api.example.com/data")
-    raw_data = {"title": "Minta Adat", "value": 42.5, "timestamp": time.time()}
-
-    # Küldés a Redis üzenetsorba a feldolgozónak
-    r.rpush('raw_data_queue', json.dumps(raw_data))
-    print("Adat begyűjtve és elküldve a sorba.")
-
-# def fetch_water_level():
-
+YEARS_BACK = 3
 
 class WaterLevel:
     """Balatoni és egyéb hidrológiai vízszint adatok lekérdezésére és
@@ -213,9 +201,9 @@ class Weather:
 @app.route('/api/collect_water_level', methods=['GET'])
 def collect_water_level():
     # Példányosítás (10 évre visszamenőleg a Balaton átlag állomással)
-    balaton_wl = WaterLevel(station_code="442600", years_back=3)
+    balaton_wl = WaterLevel(station_code="442600", years_back=YEARS_BACK)
     # Példányosítás időjárás adatok
-    balaton_w = Weather(3)
+    balaton_w = Weather(YEARS_BACK)
 
     # Vízügyi adatok lekérése
     water_result = balaton_wl.fetch_data()
@@ -249,9 +237,3 @@ if __name__ == "__main__":
     print("Collector main")
     app.run(host='0.0.0.0', port=5000, debug=True)
 
-
-
-# if __name__ == '__main__':
-#     while True:
-#         fetch_data()
-#         time.sleep(60) # Gyűjtés 60 másodpercenként

@@ -15,6 +15,7 @@ COLLECTOR_WATER_LEVEL_URL = os.getenv('COLLECTOR_WATER_LEVEL_URL', 'http://colle
 @app.route('/api/collect_trigger')
 def collect_trigger():
     # Vízállás adatok összegyűjtése:
+    # CORS probléma megoldása
     try:
         print("COLLECTOR_WATER_LEVEL_URL hívása")
         response = requests.get(COLLECTOR_WATER_LEVEL_URL, timeout=3)
