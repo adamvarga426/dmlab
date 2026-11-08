@@ -1,0 +1,80 @@
+version: '3.3'
+
+services:
+  mysql_db:
+    image: mysql:8.0
+    container_name: mysql_db
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql_rootpw_426.
+      MYSQL_DATABASE: dmlab_db
+      MYSQL_USER: mysql_user
+      MYSQL_PASSWORD: mysql_pw
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-net
+
+  redis_broker:
+    image: redis:alpine
+    container_name: redis_broker
+    networks:
+      - app-net
+
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
+    container_name: collector
+    volumes:
+      - ./collector:/app
+    depends_on:
+      - redis_broker
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - app-net
+
+  processor:
+    build:
+      context: ./processor
+      dockerfile: Dockerfile
+    container_name: processor
+    volumes:
+      - ./processor:/app
+    depends_on:
+      - mysql_db
+      - redis_broker
+    environment:
+      - DATABASE_URL=mysql+pymysql://mysql_user:mysql_pw@mysql_db:3306/dmlab_db
+      - PYTHONUNBUFFERED=1
+    networks:
+      - app-net
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: web
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./web:/app
+    depends_on:
+      - processor
+    environment:
+      - PROCESSOR_API_URL=http://processor:5000/api/data
+      - PROCESSOR_AGGR_API_URL=http://processor:5000/api/aggregates
+      - COLLECTOR_WATER_LEVEL_URL=http://collector:5000/api/collect_water_level
+      - FLASK-DEBUG=1
+      - PYTHONUNBUFFERED=1
+    networks:
+      - app-net
+
+volumes:
+  mysql_data:
+
+networks:
+  app-net:
+    driver: bridge

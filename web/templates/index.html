@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title>Balaton vízállása a napsütés és csapadék tekintetében</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+
+    <button id="trigger-btn">Vízállás és időjárás adatok frissítése</button>
+    <div id="status-message" style="margin-top: 10px; color: gray;"></div>
+
+    <h1>Balaton vízállása a napsütés és csapadék tekintetében</h1>
+    <section style="max-width: 1200px; margin: 40px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <h2>Havi Vízállás átlag, csapadék- és napsütéses órák szumma</h2>
+        <canvas id="salesChart"></canvas>
+    </section>
+
+    <p>A fenti diagrammon együtt láthatjuk a Balaton vízállásának (vízlépcső cm), az adott havi összes napsütéses órák számának, valamint a havi össz lehullott csapadék (mm) viszonyát.</p>
+    <p>Ugyan az aszály természetesen okozója az alacsony vízszintnek, de én személy szerint azt olvasom le a diagrammról, hogy ahol tartósan magas a napsütéses órák száma, onnantól kezd erősen csökkenni a vízszint, és (ha csak nincs kiemelkedően sok) csapadék egy hónapban, akkor annak kisebb a hatása. Arra következtetek, hogy a vízszint csökkenésre nagyobb hatással van az erős párolgás, mint a kevés csapadék.</p>
+
+
+
+
+    <h1>Adatsorok</h1>
+
+    <h2>Havi vízállás és csapadék összegek</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>Dátum</th>
+            <th>Havi átlag vízállás</th>
+            <th>Havi össz napsütéses órák</th>
+            <th>Havi össz csapadék mm</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in aggregates %}
+        <tr>
+            <td>{{ item.year_month }}</td>
+            <td>{{ item.mon_water_level }}</td>
+            <td>{{ item.mon_sunshine }}</td>
+            <td>{{ item.mon_precipitation }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="4">Nincsenek elérhető adatok.</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+
+    <h2>Legfrissebb Feldolgozott Adatok (max 100 rekord jelenik meg)</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>Dátum</th>
+            <th>Napi vízállás</th>
+            <th>Napsütéses órák száma</th>
+            <th>Napi csapadék mm</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in data %}
+        <tr>
+            <td>{{ item.date_id }}</td>
+            <td>{{ item.water_level }}</td>
+            <td>{{ item.sunshine }}</td>
+            <td>{{ item.precipitation }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="4">Nincsenek elérhető adatok.</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script type="application/javascript">
+
+    document.getElementById('trigger-btn').addEventListener('click', async () => {
+        const statusMsg = document.getElementById('status-message');
+        statusMsg.innerText = 'Folyamatban...';
+
+        try {
+            // Aszinkron hívás a megadott URL-re (ez lehet a saját Flask API-d vagy egy külső URL is)
+            const response = await fetch('/api/collect_trigger', {
+                method: 'GET', // Használhatsz 'POST'-ot is, ha adatot küldesz
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+                // body: JSON.stringify({ key: 'value' }) // Ha POST kérésnél adatot is akarsz küldeni
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP hiba! Státusz: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Sikeres válasz kezelése
+            statusMsg.style.color = 'green';
+            statusMsg.innerText = 'Adatok frissítve az adatbázisban.';
+            console.log('Kapott adatok:', data);
+
+        } catch (error) {
+            // Hiba kezelése (pl. hálózati hiba vagy szerverhiba)
+            statusMsg.style.color = 'red';
+            statusMsg.innerText = `Hiba történt: ${error.message}`;
+            console.error('Hiba:', error);
+        }
+    });
+
+    // Chart
+    const labels = {{ labels | tojson }};
+    const mon_water_level = {{ mon_water_level | tojson }};
+    const mon_sunshine = {{ mon_sunshine | tojson }};
+    const mon_precipitation = {{ mon_precipitation | tojson }};
+
+    console.log("labels", labels);
+
+    if (labels.length > 0) {
+        const ctx = document.getElementById('salesChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'bar', // Vagy átállíthatod 'line'-ra is
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Átlag vízállás cm',
+                        data: mon_water_level,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y', // Elsődleges Y tengelyhez kötjük
+                    },
+                    {
+                        label: 'Szumma napsütéses órák',
+                        data: mon_sunshine,
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y1', // Másodlagos Y tengelyhez kötjük
+                    },
+                    {
+                        label: 'Szumma csapadék mm',
+                        data: mon_precipitation,
+                        backgroundColor: 'rgba(16,184,40,0.6)',
+                        borderColor: 'rgba(16,250,48,0.6)',
+                        borderWidth: 1,
+                        yAxisID: 'y2', // Harmadlagos Y tengelyhez kötjük
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    // Bal oldali Y tengely (Átlag vízállás)
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Átlag vízállás cm'
+                        }
+                    },
+                    // Jobb oldali Y tengely (Szumma napsütéses órák)
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: {
+                            drawOnChartArea: false // Elrejti a rácsvonalakat, hogy ne zavarják a bal oldalit
+                        },
+                        title: {
+                            display: true,
+                            text: 'Szumma napsütéses órák'
+                        }
+                    },
+                    // Jobb oldali Y tengely (Szumma csapadék mm)
+                    y2: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: {
+                            drawOnChartArea: false // Elrejti a rácsvonalakat, hogy ne zavarják a bal oldalit
+                        },
+                        title: {
+                            display: true,
+                            text: 'Szumma csapadék mm'
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+<p>A DMLAB részére készítette:</p>
+<p>Varga Ádám</p>
+<p>adamvarga426@gmail.com</p>
+<p>+36202790009</p>
+</body>
+</html>

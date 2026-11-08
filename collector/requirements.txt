@@ -1,0 +1,9 @@
+Flask==3.0.3
+requests==2.31.0
+redis==5.0.3
+pandas==2.2.1
+lxml==5.1.0
+html5lib==1.1
+openpyxl==3.1.2
+cryptography==42.0.5
+beautifulsoup4==4.12.3
